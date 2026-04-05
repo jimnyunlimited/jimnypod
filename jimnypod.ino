@@ -426,118 +426,66 @@ static void app_btn_event_cb(lv_event_t * e) {
     }
 }
 
+lv_obj_t * create_launcher_btn(lv_obj_t * parent, const char * icon_str, const char * text, int app_id, uint32_t color_hex) {
+    lv_obj_t * btn = lv_btn_create(parent);
+    lv_obj_set_size(btn, 300, 90);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x1A1A1A), 0);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x333333), LV_STATE_PRESSED);
+    lv_obj_set_style_radius(btn, 45, 0); // Pill shape
+    lv_obj_set_style_border_width(btn, 2, 0);
+    lv_obj_set_style_border_color(btn, lv_color_hex(0x333333), 0);
+    lv_obj_add_event_cb(btn, app_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)app_id);
+
+    // App Icon
+    lv_obj_t * icon = lv_label_create(btn);
+    lv_label_set_text(icon, icon_str);
+    lv_obj_set_style_text_color(icon, lv_color_hex(color_hex), 0);
+    #if LV_FONT_MONTSERRAT_32
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_32, 0);
+    #else
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_28, 0);
+    #endif
+    lv_obj_align(icon, LV_ALIGN_LEFT_MID, 30, 0);
+
+    // App Name
+    lv_obj_t * label = lv_label_create(btn);
+    lv_label_set_text(label, text);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
+    #if LV_FONT_MONTSERRAT_24
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+    #else
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
+    #endif
+    lv_obj_align(label, LV_ALIGN_LEFT_MID, 80, 0);
+    
+    return btn;
+}
+
 void build_launcher_screen() {
     launcher_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(launcher_screen, lv_color_hex(0x000000), 0); // True AMOLED Black
-    lv_obj_clear_flag(launcher_screen, LV_OBJ_FLAG_SCROLLABLE);
+    
+    // Enable scrolling and hide the scrollbar for a clean look
+    lv_obj_add_flag(launcher_screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(launcher_screen, LV_SCROLLBAR_MODE_OFF);
 
-    // Title
-    lv_obj_t * title = lv_label_create(launcher_screen);
-    lv_label_set_text(title, "TRAILMASTER");
-    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
-    #if LV_FONT_MONTSERRAT_24
-        lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
-    #endif
-    lv_obj_align(title, LV_ALIGN_CENTER, 0, -140);
+    // Set up a vertical flex layout
+    lv_obj_set_flex_flow(launcher_screen, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(launcher_screen, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    // Add padding so the first and last items can be scrolled to the exact center of the round screen
+    // Screen height is 466. Center is 233. Button height is 90 (center is 45). 233 - 45 = 188px padding.
+    lv_obj_set_style_pad_top(launcher_screen, 188, 0);
+    lv_obj_set_style_pad_bottom(launcher_screen, 188, 0);
+    lv_obj_set_style_pad_row(launcher_screen, 20, 0); // 20px gap between buttons
 
-    // Subtitle
-    lv_obj_t * subtitle = lv_label_create(launcher_screen);
-    lv_label_set_text(subtitle, "Select App");
-    lv_obj_set_style_text_color(subtitle, lv_color_hex(0x888888), 0);
-    lv_obj_align(subtitle, LV_ALIGN_CENTER, 0, -110);
-
-    // --- App 1: Inclinometer ---
-    lv_obj_t * btn1 = lv_btn_create(launcher_screen);
-    lv_obj_set_size(btn1, 120, 120);
-    lv_obj_align(btn1, LV_ALIGN_CENTER, -80, -10);
-    lv_obj_set_style_bg_color(btn1, lv_color_hex(0x1A1A1A), 0); 
-    lv_obj_set_style_bg_color(btn1, lv_color_hex(0x333333), LV_STATE_PRESSED);
-    lv_obj_set_style_radius(btn1, 30, 0); 
-    lv_obj_set_style_border_width(btn1, 2, 0);
-    lv_obj_set_style_border_color(btn1, lv_color_hex(0x333333), 0);
-    lv_obj_add_event_cb(btn1, app_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)1);
-
-    lv_obj_t * icon1 = lv_label_create(btn1);
-    lv_label_set_text(icon1, LV_SYMBOL_GPS); 
-    lv_obj_set_style_text_color(icon1, lv_color_hex(0xE67E22), 0); 
-    #if LV_FONT_MONTSERRAT_28
-        lv_obj_set_style_text_font(icon1, &lv_font_montserrat_28, 0);
-    #else
-        lv_obj_set_style_text_font(icon1, &lv_font_montserrat_24, 0);
-    #endif
-    lv_obj_align(icon1, LV_ALIGN_CENTER, 0, -15);
-
-    lv_obj_t * label1 = lv_label_create(btn1);
-    lv_label_set_text(label1, "Incline");
-    lv_obj_set_style_text_color(label1, lv_color_hex(0xFFFFFF), 0);
-    #if LV_FONT_MONTSERRAT_16
-        lv_obj_set_style_text_font(label1, &lv_font_montserrat_16, 0);
-    #else
-        lv_obj_set_style_text_font(label1, &lv_font_montserrat_20, 0);
-    #endif
-    lv_obj_align(label1, LV_ALIGN_CENTER, 0, 30);
-
-    // --- App 2: Photo Frame ---
-    lv_obj_t * btn2 = lv_btn_create(launcher_screen);
-    lv_obj_set_size(btn2, 120, 120);
-    lv_obj_align(btn2, LV_ALIGN_CENTER, 80, -10);
-    lv_obj_set_style_bg_color(btn2, lv_color_hex(0x1A1A1A), 0);
-    lv_obj_set_style_bg_color(btn2, lv_color_hex(0x333333), LV_STATE_PRESSED);
-    lv_obj_set_style_radius(btn2, 30, 0);
-    lv_obj_set_style_border_width(btn2, 2, 0);
-    lv_obj_set_style_border_color(btn2, lv_color_hex(0x333333), 0);
-    lv_obj_add_event_cb(btn2, app_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)2);
-
-    lv_obj_t * icon2 = lv_label_create(btn2);
-    lv_label_set_text(icon2, LV_SYMBOL_IMAGE); 
-    lv_obj_set_style_text_color(icon2, lv_color_hex(0x2ECC71), 0); 
-    #if LV_FONT_MONTSERRAT_28
-        lv_obj_set_style_text_font(icon2, &lv_font_montserrat_28, 0);
-    #else
-        lv_obj_set_style_text_font(icon2, &lv_font_montserrat_24, 0);
-    #endif
-    lv_obj_align(icon2, LV_ALIGN_CENTER, 0, -15);
-
-    lv_obj_t * label2 = lv_label_create(btn2);
-    lv_label_set_text(label2, "Photos");
-    lv_obj_set_style_text_color(label2, lv_color_hex(0xFFFFFF), 0);
-    #if LV_FONT_MONTSERRAT_16
-        lv_obj_set_style_text_font(label2, &lv_font_montserrat_16, 0);
-    #else
-        lv_obj_set_style_text_font(label2, &lv_font_montserrat_20, 0);
-    #endif
-    lv_obj_align(label2, LV_ALIGN_CENTER, 0, 30);
-
-    // --- App 3: Settings ---
-    lv_obj_t * btn3 = lv_btn_create(launcher_screen);
-    lv_obj_set_size(btn3, 120, 120);
-    lv_obj_align(btn3, LV_ALIGN_CENTER, 0, 120);
-    lv_obj_set_style_bg_color(btn3, lv_color_hex(0x1A1A1A), 0);
-    lv_obj_set_style_bg_color(btn3, lv_color_hex(0x333333), LV_STATE_PRESSED);
-    lv_obj_set_style_radius(btn3, 30, 0);
-    lv_obj_set_style_border_width(btn3, 2, 0);
-    lv_obj_set_style_border_color(btn3, lv_color_hex(0x333333), 0);
-    lv_obj_add_event_cb(btn3, app_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)3);
-
-    lv_obj_t * icon3 = lv_label_create(btn3);
-    lv_label_set_text(icon3, LV_SYMBOL_SETTINGS); 
-    lv_obj_set_style_text_color(icon3, lv_color_hex(0x9E9E9E), 0);
-    #if LV_FONT_MONTSERRAT_28
-        lv_obj_set_style_text_font(icon3, &lv_font_montserrat_28, 0);
-    #else
-        lv_obj_set_style_text_font(icon3, &lv_font_montserrat_24, 0);
-    #endif
-    lv_obj_align(icon3, LV_ALIGN_CENTER, 0, -15);
-
-    lv_obj_t * label3 = lv_label_create(btn3);
-    lv_label_set_text(label3, "Settings");
-    lv_obj_set_style_text_color(label3, lv_color_hex(0xFFFFFF), 0);
-    #if LV_FONT_MONTSERRAT_16
-        lv_obj_set_style_text_font(label3, &lv_font_montserrat_16, 0);
-    #else
-        lv_obj_set_style_text_font(label3, &lv_font_montserrat_20, 0);
-    #endif
-    lv_obj_align(label3, LV_ALIGN_CENTER, 0, 30);
+    // --- Add Apps to Launcher ---
+    create_launcher_btn(launcher_screen, LV_SYMBOL_GPS, "Inclinometer", 1, 0xE67E22);
+    create_launcher_btn(launcher_screen, LV_SYMBOL_IMAGE, "Photo Frame", 2, 0x2ECC71);
+    create_launcher_btn(launcher_screen, LV_SYMBOL_SETTINGS, "Settings", 3, 0x9E9E9E);
+    
+    // To add more apps in the future, just add another line here!
+    // create_launcher_btn(launcher_screen, LV_SYMBOL_AUDIO, "Music", 4, 0x3498DB);
 }
 
 void build_inclinometer_screen() {
@@ -672,12 +620,12 @@ void build_photoframe_screen() {
     #elif LV_FONT_MONTSERRAT_24
         lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
     #endif
-    lv_obj_align(title, LV_ALIGN_CENTER, 0, -160);
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, -180);
 
     lv_obj_t * hardcoded_qr = lv_img_create(wifi_screen_cont);
     lv_img_set_src(hardcoded_qr, &qrcode); 
     lv_img_set_zoom(hardcoded_qr, 160); 
-    lv_obj_align(hardcoded_qr, LV_ALIGN_CENTER, 0, -20);
+    lv_obj_align(hardcoded_qr, LV_ALIGN_CENTER, 0, -60);
 
     lv_obj_t * net_box = lv_obj_create(wifi_screen_cont);
     lv_obj_set_size(net_box, 360, 100); 
@@ -685,7 +633,7 @@ void build_photoframe_screen() {
     lv_obj_set_style_border_color(net_box, lv_color_hex(0x333333), 0);
     lv_obj_set_style_border_width(net_box, 2, 0);
     lv_obj_set_style_radius(net_box, 15, 0); 
-    lv_obj_align(net_box, LV_ALIGN_CENTER, 0, 125); 
+    lv_obj_align(net_box, LV_ALIGN_CENTER, 0, 95); 
     lv_obj_clear_flag(net_box, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_clear_flag(net_box, LV_OBJ_FLAG_CLICKABLE);
 
@@ -704,7 +652,7 @@ void build_photoframe_screen() {
     #if LV_FONT_MONTSERRAT_24
         lv_obj_set_style_text_font(url_lbl, &lv_font_montserrat_24, 0);
     #endif
-    lv_obj_align(url_lbl, LV_ALIGN_CENTER, 0, 195);
+    lv_obj_align(url_lbl, LV_ALIGN_CENTER, 0, 175);
 }
 
 
