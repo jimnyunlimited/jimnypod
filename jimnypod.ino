@@ -17,12 +17,28 @@
 #include <vector>
 
 // --- Global State Machine ---
-enum AppState { STATE_LAUNCHER, STATE_INCLINOMETER, STATE_PHOTOFRAME };
+enum AppState { STATE_LAUNCHER, STATE_INCLINOMETER, STATE_PHOTOFRAME, STATE_SETTINGS };
 AppState current_state = STATE_LAUNCHER;
 
 lv_obj_t * launcher_screen = NULL;
 lv_obj_t * inclinometer_screen = NULL;
 lv_obj_t * photoframe_screen = NULL;
+lv_obj_t * settings_screen = NULL;
+lv_obj_t * brightness_overlay = NULL;
+
+// --- Settings Globals ---
+int current_brightness = 100; // 10 to 100
+lv_obj_t * brightness_label = NULL;
+
+// --- Function Prototypes ---
+void build_launcher_screen();
+void build_inclinometer_screen();
+void build_photoframe_screen();
+void build_settings_screen();
+void switch_to_launcher();
+void switch_to_settings();
+void set_brightness(int value);
+void setup_brightness_overlay();
 
 // --- Photo Frame Globals ---
 const char* AP_SSID = "Trailmaster_Sync"; 
@@ -306,19 +322,6 @@ static void btn_no_cb(lv_event_t * e) {
     last_image_change = millis(); 
 }
 
-static void app_btn_event_cb(lv_event_t * e) {
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * btn = lv_event_get_target(e);
-    if(code == LV_EVENT_CLICKED) {
-        int app_id = (int)(intptr_t)lv_event_get_user_data(e);
-        if (app_id == 1) {
-            switch_to_inclinometer();
-        } else if (app_id == 2) {
-            switch_to_photoframe();
-        }
-    }
-}
-
 static void inclinometer_gesture_cb(lv_event_t * e) {
     lv_event_code_t code = lv_event_get_code(e);
     
@@ -390,7 +393,39 @@ static void photoframe_gesture_cb(lv_event_t * e) {
     }
 }
 
+static void btn_brightness_minus_cb(lv_event_t * e) {
+    set_brightness(current_brightness - 10);
+}
+
+static void btn_brightness_plus_cb(lv_event_t * e) {
+    set_brightness(current_brightness + 10);
+}
+
+static void settings_gesture_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_LONG_PRESSED) {
+        switch_to_launcher();
+    }
+}
+
 // --- Screen Builders ---
+// ==========================================
+//             APP LAUNCHER
+// ==========================================
+static void app_btn_event_cb(lv_event_t * e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    if(code == LV_EVENT_CLICKED) {
+        int app_id = (int)(intptr_t)lv_event_get_user_data(e);
+        if (app_id == 1) {
+            switch_to_inclinometer();
+        } else if (app_id == 2) {
+            switch_to_photoframe();
+        } else if (app_id == 3) {
+            switch_to_settings();
+        }
+    }
+}
+
 void build_launcher_screen() {
     launcher_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(launcher_screen, lv_color_hex(0x000000), 0); // True AMOLED Black
@@ -413,73 +448,96 @@ void build_launcher_screen() {
 
     // --- App 1: Inclinometer ---
     lv_obj_t * btn1 = lv_btn_create(launcher_screen);
-    lv_obj_set_size(btn1, 150, 150);
-    lv_obj_align(btn1, LV_ALIGN_CENTER, -85, 20);
-    lv_obj_set_style_bg_color(btn1, lv_color_hex(0x1A1A1A), 0); // Dark gray
+    lv_obj_set_size(btn1, 120, 120);
+    lv_obj_align(btn1, LV_ALIGN_CENTER, -80, -10);
+    lv_obj_set_style_bg_color(btn1, lv_color_hex(0x1A1A1A), 0); 
     lv_obj_set_style_bg_color(btn1, lv_color_hex(0x333333), LV_STATE_PRESSED);
-    lv_obj_set_style_radius(btn1, 35, 0); // Apple Watch style squircle
+    lv_obj_set_style_radius(btn1, 30, 0); 
     lv_obj_set_style_border_width(btn1, 2, 0);
     lv_obj_set_style_border_color(btn1, lv_color_hex(0x333333), 0);
-    lv_obj_set_style_shadow_width(btn1, 0, 0);
     lv_obj_add_event_cb(btn1, app_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)1);
 
     lv_obj_t * icon1 = lv_label_create(btn1);
-    lv_label_set_text(icon1, LV_SYMBOL_GPS); // Built-in crosshair/compass icon
-    lv_obj_set_style_text_color(icon1, lv_color_hex(0xE67E22), 0); // Trailmaster Orange
-    #if LV_FONT_MONTSERRAT_32
-        lv_obj_set_style_text_font(icon1, &lv_font_montserrat_32, 0);
-    #elif LV_FONT_MONTSERRAT_28
+    lv_label_set_text(icon1, LV_SYMBOL_GPS); 
+    lv_obj_set_style_text_color(icon1, lv_color_hex(0xE67E22), 0); 
+    #if LV_FONT_MONTSERRAT_28
         lv_obj_set_style_text_font(icon1, &lv_font_montserrat_28, 0);
     #else
         lv_obj_set_style_text_font(icon1, &lv_font_montserrat_24, 0);
     #endif
-    lv_obj_align(icon1, LV_ALIGN_CENTER, 0, -20);
+    lv_obj_align(icon1, LV_ALIGN_CENTER, 0, -15);
 
     lv_obj_t * label1 = lv_label_create(btn1);
     lv_label_set_text(label1, "Incline");
     lv_obj_set_style_text_color(label1, lv_color_hex(0xFFFFFF), 0);
-    #if LV_FONT_MONTSERRAT_20
+    #if LV_FONT_MONTSERRAT_16
+        lv_obj_set_style_text_font(label1, &lv_font_montserrat_16, 0);
+    #else
         lv_obj_set_style_text_font(label1, &lv_font_montserrat_20, 0);
     #endif
-    lv_obj_align(label1, LV_ALIGN_CENTER, 0, 35);
+    lv_obj_align(label1, LV_ALIGN_CENTER, 0, 30);
 
     // --- App 2: Photo Frame ---
     lv_obj_t * btn2 = lv_btn_create(launcher_screen);
-    lv_obj_set_size(btn2, 150, 150);
-    lv_obj_align(btn2, LV_ALIGN_CENTER, 85, 20);
+    lv_obj_set_size(btn2, 120, 120);
+    lv_obj_align(btn2, LV_ALIGN_CENTER, 80, -10);
     lv_obj_set_style_bg_color(btn2, lv_color_hex(0x1A1A1A), 0);
     lv_obj_set_style_bg_color(btn2, lv_color_hex(0x333333), LV_STATE_PRESSED);
-    lv_obj_set_style_radius(btn2, 35, 0);
+    lv_obj_set_style_radius(btn2, 30, 0);
     lv_obj_set_style_border_width(btn2, 2, 0);
     lv_obj_set_style_border_color(btn2, lv_color_hex(0x333333), 0);
-    lv_obj_set_style_shadow_width(btn2, 0, 0);
     lv_obj_add_event_cb(btn2, app_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)2);
 
     lv_obj_t * icon2 = lv_label_create(btn2);
-    lv_label_set_text(icon2, LV_SYMBOL_IMAGE); // Built-in picture icon
-    lv_obj_set_style_text_color(icon2, lv_color_hex(0x2ECC71), 0); // Green
-    #if LV_FONT_MONTSERRAT_32
-        lv_obj_set_style_text_font(icon2, &lv_font_montserrat_32, 0);
-    #elif LV_FONT_MONTSERRAT_28
+    lv_label_set_text(icon2, LV_SYMBOL_IMAGE); 
+    lv_obj_set_style_text_color(icon2, lv_color_hex(0x2ECC71), 0); 
+    #if LV_FONT_MONTSERRAT_28
         lv_obj_set_style_text_font(icon2, &lv_font_montserrat_28, 0);
     #else
         lv_obj_set_style_text_font(icon2, &lv_font_montserrat_24, 0);
     #endif
-    lv_obj_align(icon2, LV_ALIGN_CENTER, 0, -20);
+    lv_obj_align(icon2, LV_ALIGN_CENTER, 0, -15);
 
     lv_obj_t * label2 = lv_label_create(btn2);
     lv_label_set_text(label2, "Photos");
     lv_obj_set_style_text_color(label2, lv_color_hex(0xFFFFFF), 0);
-    #if LV_FONT_MONTSERRAT_20
+    #if LV_FONT_MONTSERRAT_16
+        lv_obj_set_style_text_font(label2, &lv_font_montserrat_16, 0);
+    #else
         lv_obj_set_style_text_font(label2, &lv_font_montserrat_20, 0);
     #endif
-    lv_obj_align(label2, LV_ALIGN_CENTER, 0, 35);
+    lv_obj_align(label2, LV_ALIGN_CENTER, 0, 30);
 
-    // Universal Gesture Hint at the bottom
-    lv_obj_t * hint = lv_label_create(launcher_screen);
-    lv_label_set_text(hint, "Long-press to exit apps");
-    lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), 0);
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -40);
+    // --- App 3: Settings ---
+    lv_obj_t * btn3 = lv_btn_create(launcher_screen);
+    lv_obj_set_size(btn3, 120, 120);
+    lv_obj_align(btn3, LV_ALIGN_CENTER, 0, 120);
+    lv_obj_set_style_bg_color(btn3, lv_color_hex(0x1A1A1A), 0);
+    lv_obj_set_style_bg_color(btn3, lv_color_hex(0x333333), LV_STATE_PRESSED);
+    lv_obj_set_style_radius(btn3, 30, 0);
+    lv_obj_set_style_border_width(btn3, 2, 0);
+    lv_obj_set_style_border_color(btn3, lv_color_hex(0x333333), 0);
+    lv_obj_add_event_cb(btn3, app_btn_event_cb, LV_EVENT_CLICKED, (void*)(intptr_t)3);
+
+    lv_obj_t * icon3 = lv_label_create(btn3);
+    lv_label_set_text(icon3, LV_SYMBOL_SETTINGS); 
+    lv_obj_set_style_text_color(icon3, lv_color_hex(0x9E9E9E), 0);
+    #if LV_FONT_MONTSERRAT_28
+        lv_obj_set_style_text_font(icon3, &lv_font_montserrat_28, 0);
+    #else
+        lv_obj_set_style_text_font(icon3, &lv_font_montserrat_24, 0);
+    #endif
+    lv_obj_align(icon3, LV_ALIGN_CENTER, 0, -15);
+
+    lv_obj_t * label3 = lv_label_create(btn3);
+    lv_label_set_text(label3, "Settings");
+    lv_obj_set_style_text_color(label3, lv_color_hex(0xFFFFFF), 0);
+    #if LV_FONT_MONTSERRAT_16
+        lv_obj_set_style_text_font(label3, &lv_font_montserrat_16, 0);
+    #else
+        lv_obj_set_style_text_font(label3, &lv_font_montserrat_20, 0);
+    #endif
+    lv_obj_align(label3, LV_ALIGN_CENTER, 0, 30);
 }
 
 void build_inclinometer_screen() {
@@ -581,6 +639,9 @@ void build_inclinometer_screen() {
 // Listen to ALL touch events so we can track presses, swipes, and clicks
     lv_obj_add_event_cb(touch_overlay, inclinometer_gesture_cb, LV_EVENT_SHORT_CLICKED, NULL);
     lv_obj_add_event_cb(touch_overlay, inclinometer_gesture_cb, LV_EVENT_LONG_PRESSED, NULL);
+
+    // Call updateUI once to set initial points so it's not blank
+    updateUI();    
 }
 
 void build_photoframe_screen() {
@@ -646,6 +707,7 @@ void build_photoframe_screen() {
     lv_obj_align(url_lbl, LV_ALIGN_CENTER, 0, 195);
 }
 
+
 // --- Screen Switchers ---
 void switch_to_launcher() {
     current_state = STATE_LAUNCHER;
@@ -663,6 +725,104 @@ void switch_to_photoframe() {
     scan_images();
     if (image_files.size() > 0) {
         show_image(0);
+    }
+}
+
+void build_settings_screen() {
+    settings_screen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(settings_screen, lv_color_hex(0x000000), 0);
+    lv_obj_clear_flag(settings_screen, LV_OBJ_FLAG_SCROLLABLE);
+    
+    lv_obj_add_event_cb(settings_screen, settings_gesture_cb, LV_EVENT_LONG_PRESSED, NULL);
+
+    lv_obj_t * title = lv_label_create(settings_screen);
+    lv_label_set_text(title, "SETTINGS");
+    lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
+    #if LV_FONT_MONTSERRAT_24
+        lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    #endif
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 60);
+
+    lv_obj_t * brightness_title = lv_label_create(settings_screen);
+    lv_label_set_text(brightness_title, "Brightness");
+    lv_obj_set_style_text_color(brightness_title, lv_color_hex(0xAAAAAA), 0);
+    #if LV_FONT_MONTSERRAT_20
+        lv_obj_set_style_text_font(brightness_title, &lv_font_montserrat_20, 0);
+    #endif
+    lv_obj_align(brightness_title, LV_ALIGN_CENTER, 0, -60);
+
+    // Minus button
+    lv_obj_t * btn_minus = lv_btn_create(settings_screen);
+    lv_obj_set_size(btn_minus, 70, 70);
+    lv_obj_align(btn_minus, LV_ALIGN_CENTER, -90, 10);
+    lv_obj_set_style_bg_color(btn_minus, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_radius(btn_minus, 35, 0);
+    lv_obj_add_event_cb(btn_minus, btn_brightness_minus_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t * label_minus = lv_label_create(btn_minus);
+    lv_label_set_text(label_minus, "-");
+    #if LV_FONT_MONTSERRAT_28
+        lv_obj_set_style_text_font(label_minus, &lv_font_montserrat_28, 0);
+    #endif
+    lv_obj_center(label_minus);
+
+    // Plus button
+    lv_obj_t * btn_plus = lv_btn_create(settings_screen);
+    lv_obj_set_size(btn_plus, 70, 70);
+    lv_obj_align(btn_plus, LV_ALIGN_CENTER, 90, 10);
+    lv_obj_set_style_bg_color(btn_plus, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_radius(btn_plus, 35, 0);
+    lv_obj_add_event_cb(btn_plus, btn_brightness_plus_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t * label_plus = lv_label_create(btn_plus);
+    lv_label_set_text(label_plus, "+");
+    #if LV_FONT_MONTSERRAT_28
+        lv_obj_set_style_text_font(label_plus, &lv_font_montserrat_28, 0);
+    #endif
+    lv_obj_center(label_plus);
+
+    // Brightness value label
+    brightness_label = lv_label_create(settings_screen);
+    lv_label_set_text_fmt(brightness_label, "%d%%", current_brightness);
+    lv_obj_set_style_text_color(brightness_label, lv_color_hex(0xFFFFFF), 0);
+    #if LV_FONT_MONTSERRAT_28
+        lv_obj_set_style_text_font(brightness_label, &lv_font_montserrat_28, 0);
+    #endif
+    lv_obj_align(brightness_label, LV_ALIGN_CENTER, 0, 10);
+
+    lv_obj_t * hint = lv_label_create(settings_screen);
+    lv_label_set_text(hint, "Long-press to exit");
+    lv_obj_set_style_text_color(hint, lv_color_hex(0x555555), 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -40);
+}
+
+void switch_to_settings() {
+    current_state = STATE_SETTINGS;
+    lv_scr_load_anim(settings_screen, LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
+}
+
+void set_brightness(int value) {
+    if (value < 10) value = 10;
+    if (value > 100) value = 100;
+    current_brightness = value;
+    
+    if (brightness_label != NULL) {
+        lv_label_set_text_fmt(brightness_label, "%d%%", current_brightness);
+    }
+    
+    if (brightness_overlay != NULL) {
+        int opa = 255 - (current_brightness * 255 / 100);
+        lv_obj_set_style_bg_opa(brightness_overlay, opa, 0);
+    }
+}
+
+void setup_brightness_overlay() {
+    if (brightness_overlay == NULL) {
+        brightness_overlay = lv_obj_create(lv_layer_sys());
+        lv_obj_set_size(brightness_overlay, 466, 466);
+        lv_obj_align(brightness_overlay, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_bg_color(brightness_overlay, lv_color_hex(0x000000), 0);
+        lv_obj_set_style_bg_opa(brightness_overlay, 0, 0); 
+        lv_obj_set_style_border_width(brightness_overlay, 0, 0);
+        lv_obj_clear_flag(brightness_overlay, LV_OBJ_FLAG_CLICKABLE); 
     }
 }
 
@@ -740,6 +900,8 @@ void setup() {
     build_launcher_screen();
     build_inclinometer_screen();
     build_photoframe_screen();
+    build_settings_screen();
+    setup_brightness_overlay();
 
     // Start on Launcher
     switch_to_launcher();
@@ -767,8 +929,9 @@ void loop() {
         if (millis() - last_update >= 20) {
             if (imu_ready) {
                 updateAttitude();
-                updateUI();
             }
+            // Always update UI so it doesn't stay blank even if IMU is disconnected
+            updateUI();
             last_update = millis();
         }
     } 
