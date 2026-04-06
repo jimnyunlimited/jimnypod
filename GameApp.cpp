@@ -11,7 +11,6 @@ lv_obj_t * score_label = NULL;
 lv_obj_t * high_score_label = NULL;
 lv_obj_t * ground_line_obj = NULL;
 
-// Buffer for large detailed rhino
 static lv_color_t rhino_buffer[100 * 80];
 
 bool is_gaming = false;
@@ -19,47 +18,33 @@ bool is_jumping = false;
 bool is_game_over = false;
 int game_score = 0;
 int high_score = 0;
-const int GROUND_Y = 380; // Adjusted to be visible on circular screen
+const int GROUND_Y = 300; 
+const int DINO_X_POS = 50; // Far left as requested
 int rhino_y = GROUND_Y - 80;
 float rhino_vf = 0; 
-const int DINO_X_POS = 80;
-int cactus_x = 450;
+int cactus_x = 1500; // 2-second initial delay
 
 Preferences gamePrefs;
 
-// --- Draw a detailed Rhino on the canvas ---
 void render_rhino_on_canvas(bool hit) {
-    // Fill with solid black to prevent trails (scrubbing)
     lv_canvas_fill_bg(rhino_canvas, lv_color_hex(0x000000), LV_OPA_COVER);
     
-    lv_draw_rect_dsc_t body_dsc;
-    lv_draw_rect_dsc_init(&body_dsc);
-    body_dsc.bg_color = hit ? lv_color_hex(0xFF0000) : lv_color_hex(0x888888);
-    body_dsc.radius = 8;
-
-    // sturdy body
-    lv_canvas_draw_rect(rhino_canvas, 10, 25, 60, 40, &body_dsc);
+    lv_draw_rect_dsc_t draw_dsc;
+    lv_draw_rect_dsc_init(&draw_dsc);
+    draw_dsc.bg_color = hit ? lv_color_hex(0xFF0000) : lv_color_hex(0x888888);
+    draw_dsc.radius = 8;
+    lv_canvas_draw_rect(rhino_canvas, 10, 25, 60, 40, &draw_dsc);
     
-    // Tapered head
-    lv_draw_rect_dsc_t head_dsc;
-    lv_draw_rect_dsc_init(&head_dsc);
-    head_dsc.bg_color = hit ? lv_color_hex(0xFF0000) : lv_color_hex(0xAAAAAA);
-    head_dsc.radius = 4;
-    lv_canvas_draw_rect(rhino_canvas, 60, 15, 30, 25, &head_dsc);
+    draw_dsc.bg_color = hit ? lv_color_hex(0xFF0000) : lv_color_hex(0xAAAAAA);
+    lv_canvas_draw_rect(rhino_canvas, 60, 15, 30, 25, &draw_dsc);
 
-    // Horns
-    lv_draw_rect_dsc_t horn_dsc;
-    lv_draw_rect_dsc_init(&horn_dsc);
-    horn_dsc.bg_color = lv_color_hex(0xEEEEEE);
-    lv_canvas_draw_rect(rhino_canvas, 82, 5, 8, 15, &horn_dsc); 
-    lv_canvas_draw_rect(rhino_canvas, 72, 10, 6, 10, &horn_dsc); 
+    draw_dsc.bg_color = lv_color_hex(0xEEEEEE);
+    lv_canvas_draw_rect(rhino_canvas, 82, 5, 8, 15, &draw_dsc); 
+    lv_canvas_draw_rect(rhino_canvas, 72, 10, 6, 10, &draw_dsc); 
 
-    // Thick legs
-    lv_draw_rect_dsc_t leg_dsc;
-    lv_draw_rect_dsc_init(&leg_dsc);
-    leg_dsc.bg_color = hit ? lv_color_hex(0xAA0000) : lv_color_hex(0x666666);
-    lv_canvas_draw_rect(rhino_canvas, 15, 65, 15, 15, &leg_dsc);
-    lv_canvas_draw_rect(rhino_canvas, 45, 65, 15, 15, &leg_dsc);
+    draw_dsc.bg_color = hit ? lv_color_hex(0xAA0000) : lv_color_hex(0x666666);
+    lv_canvas_draw_rect(rhino_canvas, 15, 65, 15, 15, &draw_dsc);
+    lv_canvas_draw_rect(rhino_canvas, 45, 65, 15, 15, &draw_dsc);
 }
 
 static void game_gesture_cb(lv_event_t * e) {
@@ -68,14 +53,14 @@ static void game_gesture_cb(lv_event_t * e) {
         if (is_game_over) {
             is_game_over = false;
             game_score = 0;
-            cactus_x = 466;
+            cactus_x = 1000;
             rhino_y = GROUND_Y - 80;
             rhino_vf = 0;
             lv_label_set_text(score_label, "Score: 0");
             render_rhino_on_canvas(false);
             lv_obj_invalidate(game_screen); 
         } else if (!is_jumping) {
-            rhino_vf = -20.0f; // Jump power 20
+            rhino_vf = -20.0f; 
             is_jumping = true;
         }
     } else if (code == LV_EVENT_LONG_PRESSED) {
@@ -107,19 +92,18 @@ void build_game_screen() {
     lv_canvas_set_buffer(rhino_canvas, rhino_buffer, 100, 80, LV_IMG_CF_TRUE_COLOR);
     render_rhino_on_canvas(false);
 
-    // Score Labels at 12 O'Clock (Center Top)
     high_score_label = lv_label_create(lv_layer_top());
     lv_label_set_text(high_score_label, "Best: 0");
     lv_obj_set_style_text_color(high_score_label, lv_color_hex(0xFFFF00), 0);
     lv_obj_set_style_text_font(high_score_label, &lv_font_montserrat_24, 0);
-    lv_obj_align(high_score_label, LV_ALIGN_TOP_MID, 0, 45);
+    lv_obj_align(high_score_label, LV_ALIGN_BOTTOM_MID, 0, -70);
     lv_obj_add_flag(high_score_label, LV_OBJ_FLAG_HIDDEN);
 
     score_label = lv_label_create(lv_layer_top());
     lv_label_set_text(score_label, "Score: 0");
     lv_obj_set_style_text_color(score_label, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_font(score_label, &lv_font_montserrat_24, 0);
-    lv_obj_align(score_label, LV_ALIGN_TOP_MID, 0, 75);
+    lv_obj_align(score_label, LV_ALIGN_BOTTOM_MID, 0, -40);
     lv_obj_add_flag(score_label, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_add_event_cb(game_screen, game_gesture_cb, LV_EVENT_ALL, NULL);
@@ -130,7 +114,7 @@ void switch_to_game() {
     is_gaming = true;
     is_game_over = false;
     game_score = 0;
-    cactus_x = 466;
+    cactus_x = 1500; 
     rhino_y = GROUND_Y - 80;
     rhino_vf = 0;
     
@@ -153,9 +137,8 @@ void game_loop_handler() {
     if (millis() - last_tick < 20) return;
     last_tick = millis();
 
-    // Physics
     if (is_jumping) {
-        rhino_vf += 1.0f; // Gravity 1.0
+        rhino_vf += 1.0f; 
         rhino_y += (int)rhino_vf;
         if (rhino_y >= GROUND_Y - 80) {
             rhino_y = GROUND_Y - 80;
@@ -164,11 +147,8 @@ void game_loop_handler() {
         }
     }
     lv_obj_set_y(rhino_canvas, rhino_y);
-    
-    // Explicitly invalidate to prevent ghosting at high jump points
     lv_obj_invalidate(rhino_canvas);
 
-    // Cactus movement
     cactus_x -= (10 + (game_score / 5));
     if (cactus_x < -30) {
         cactus_x = 466;
@@ -181,9 +161,13 @@ void game_loop_handler() {
     }
     lv_obj_set_x(cactus_obj, cactus_x);
 
-    // Collision (Adjusted for 100x80 rhino)
-    if (cactus_x > DINO_X_POS - 15 && cactus_x < DINO_X_POS + 70) {
-        if (rhino_y + 65 > GROUND_Y - 60) {
+    // DYNAMIC COLLISION DETECTION
+    // Rhino visual bounds are DINO_X_POS + 10 to DINO_X_POS + 90
+    // Cactus is 20px wide. 
+    // They touch if cactus_x is between (DINO_X_POS + 10 - 20) and (DINO_X_POS + 90)
+    if (cactus_x > (DINO_X_POS - 10) && cactus_x < (DINO_X_POS + 90)) {
+        // Vertical check: hit if bottom of rhino (rhino_y + 80) is below top of cactus (GROUND_Y - 60)
+        if (rhino_y + 75 > GROUND_Y - 60) {
             is_game_over = true;
             render_rhino_on_canvas(true); 
             gamePrefs.begin("game", false);
