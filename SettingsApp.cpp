@@ -1,11 +1,14 @@
 #include "SettingsApp.h"
 #include "jimnypod.h"
+#include <Preferences.h>
 
 // --- Settings Globals ---
 int current_brightness = 100; // 10 to 100
 lv_obj_t * settings_screen = NULL;
 lv_obj_t * brightness_label = NULL;
 lv_obj_t * brightness_overlay = NULL;
+
+Preferences preferences;
 
 // --- Callbacks ---
 static void btn_brightness_minus_cb(lv_event_t * e) {
@@ -108,6 +111,11 @@ void set_brightness(int value) {
         int opa = 255 - (current_brightness * 255 / 100);
         lv_obj_set_style_bg_opa(brightness_overlay, opa, 0);
     }
+
+    // Save to preferences
+    preferences.begin("settings", false);
+    preferences.putInt("brightness", current_brightness);
+    preferences.end();
 }
 
 void setup_brightness_overlay() {
@@ -116,8 +124,15 @@ void setup_brightness_overlay() {
         lv_obj_set_size(brightness_overlay, 466, 466);
         lv_obj_align(brightness_overlay, LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_style_bg_color(brightness_overlay, lv_color_hex(0x000000), 0);
-        lv_obj_set_style_bg_opa(brightness_overlay, 0, 0); 
         lv_obj_set_style_border_width(brightness_overlay, 0, 0);
         lv_obj_clear_flag(brightness_overlay, LV_OBJ_FLAG_CLICKABLE); 
+        
+        // Load from preferences
+        preferences.begin("settings", true);
+        current_brightness = preferences.getInt("brightness", 100);
+        preferences.end();
+
+        // Apply loaded brightness
+        set_brightness(current_brightness);
     }
 }
