@@ -25,7 +25,6 @@ const char* obd_ip = "192.168.0.10";
 const uint16_t obd_port = 35000;
 
 static bool obd_wifi_running = false;
-static TaskHandle_t obd_task_handle = NULL;
 
 // --- Background Worker ---
 void read_obd_response(WiFiClient& client, char* buffer, size_t max_len) {
@@ -59,16 +58,14 @@ void obdBackgroundWorker(void *pvParameters) {
         }
         car_speed = (int)sim_speed;
         car_rpm = (int)sim_rpm;
-        vTaskDelay(pdMS_TO_TICKS(100)); 
+        if (car_rpm > 8000) car_rpm = 8000; // Cap for stability
+        vTaskDelay(pdMS_TO_TICKS(150)); 
     }
 #else
     WiFiClient client;
     char rx_buf[64];
     while(1) {
-        if (!obd_wifi_running) {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            continue;
-        }
+        if (!obd_wifi_running) { vTaskDelay(pdMS_TO_TICKS(1000)); continue; }
         if (WiFi.status() != WL_CONNECTED) {
             WiFi.begin(obd_ssid);
             int attempts = 0;
@@ -84,6 +81,7 @@ void obdBackgroundWorker(void *pvParameters) {
         client.print("010C\r"); read_obd_response(client, rx_buf, sizeof(rx_buf));
         char* ptr = strstr(rx_buf, "41 0C");
         if (ptr) { int a, b; if (sscanf(ptr, "41 0C %x %x", &a, &b) == 2) car_rpm = ((a * 256) + b) / 4; }
+        if (car_rpm > 8000) car_rpm = 8000;
         client.print("010D\r"); read_obd_response(client, rx_buf, sizeof(rx_buf));
         ptr = strstr(rx_buf, "41 0D");
         if (ptr) { int a; if (sscanf(ptr, "41 0D %x", &a) == 1) car_speed = a; }
@@ -102,9 +100,9 @@ static void obd_gesture_cb(lv_event_t * e) {
 void build_obd_screen() {
     obd_screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(obd_screen, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(obd_screen, LV_OPA_COVER, 0); // Solid black bg
     lv_obj_clear_flag(obd_screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    // Tachometer Base
     rpm_meter = lv_meter_create(obd_screen);
     lv_obj_set_size(rpm_meter, 460, 460);
     lv_obj_center(rpm_meter);
@@ -115,12 +113,14 @@ void build_obd_screen() {
     lv_meter_set_scale_range(rpm_meter, scale, 0, 8000, 270, 135);
     lv_meter_set_scale_ticks(rpm_meter, scale, 41, 2, 15, lv_color_hex(0x444444)); 
 
+    // Precise manual labels 1-8
     for(int i=1; i<=8; i++) {
         lv_obj_t * lbl = lv_label_create(obd_screen);
         lv_label_set_text_fmt(lbl, "%d", i);
-        float angle_deg = 135.0f + (i * (270.0f / 8.0f));
+        // Corrected Trig: 135 start + (i * 270/8)
+        float angle_deg = 135.0f + (i * 33.75f); 
         float angle_rad = angle_deg * M_PI / 180.0f;
-        int r = 190; 
+        int r = 195; // Radius
         lv_obj_set_style_text_font(lbl, &lv_font_montserrat_28, 0);
         lv_obj_set_style_text_color(lbl, (i >= 6) ? lv_color_hex(0xFF0000) : lv_color_hex(0xFFFFFF), 0);
         lv_obj_align(lbl, LV_ALIGN_CENTER, (int)(r * cos(angle_rad)), (int)(r * sin(angle_rad)));
@@ -143,7 +143,7 @@ void build_obd_screen() {
     lv_label_set_text(unit_lbl, "km/h");
     lv_obj_set_style_text_color(unit_lbl, lv_color_hex(0x888888), 0);
     lv_obj_set_style_text_font(unit_lbl, &lv_font_montserrat_28, 0);
-    lv_obj_align(unit_lbl, LV_ALIGN_CENTER, 0, 100);
+    lv_obj_align(unit_lbl, LV_ALIGN_CENTER, 0, 105);
 
     lv_obj_t * touch_overlay = lv_obj_create(obd_screen);
     lv_obj_set_size(touch_overlay, 466, 466);
@@ -160,7 +160,7 @@ void switch_to_obd() {
 }
 
 void obd_setup() {
-    xTaskCreatePinnedToCore(obdBackgroundWorker, "OBD_Task", 8192, NULL, 1, &obd_task_handle, 0);
+    xTaskCreatePinnedToCore(obdBackgroundWorker, "OBD_Task", 8192, NULL, 1, NULL, 0);
 }
 
 void start_obd_wifi() {
@@ -172,15 +172,17 @@ void start_obd_wifi() {
     WiFi.mode(WIFI_STA);
     WiFi.begin(obd_ssid);
     obd_wifi_running = true;
-    Serial.println("✓ OBD WiFi Station Started");
+    Serial.println("✓ OBD WiFi Started");
 }
 
 void stop_obd_wifi() {
     if (!obd_wifi_running) return;
+#if !SIMULATE_OBD
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
+#endif
     obd_wifi_running = false;
-    Serial.println("✓ OBD WiFi Station Stopped");
+    Serial.println("✓ OBD WiFi Stopped");
 }
 
 void obd_loop_handler() {
@@ -188,7 +190,8 @@ void obd_loop_handler() {
     static int last_s = -1, last_r = -1;
     static uint32_t last_ui_update = 0;
 
-    if (millis() - last_ui_update < 200) return;
+    // CAP UI UPDATE TO 400ms (2.5Hz) TO PREVENT GARBLING OF HUGE FONT
+    if (millis() - last_ui_update < 400) return;
     last_ui_update = millis();
 
     if (car_rpm != last_r) {
