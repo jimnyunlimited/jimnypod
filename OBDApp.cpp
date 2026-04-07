@@ -8,8 +8,8 @@
 // --- SIMULATION TOGGLE ---
 #define SIMULATE_OBD 1
 
-// Use the 72px font
-LV_FONT_DECLARE(ui_font_rajdhani);
+// Bring back the massive 200px font
+LV_FONT_DECLARE(ui_font_rajdhani200);
 
 // --- OBD Globals ---
 lv_obj_t * obd_screen = NULL;
@@ -36,7 +36,7 @@ void obdBackgroundWorker(void *pvParameters) {
 
     while(1) {
         if (accelerating) {
-            sim_speed += (0.4 / gear);
+            sim_speed += 0.4;
             sim_rpm += (65.0 / gear); 
             if (sim_rpm >= 6200) {
                 if (gear < 5) {
@@ -57,7 +57,7 @@ void obdBackgroundWorker(void *pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(100)); 
     }
 #else
-    // Real OBD Connection...
+    // Real OBD Logic...
     vTaskDelay(pdMS_TO_TICKS(1000));
 #endif
 }
@@ -86,7 +86,7 @@ void build_obd_screen() {
     lv_meter_set_scale_range(rpm_meter, scale, 0, 8000, 270, 135);
     lv_meter_set_scale_ticks(rpm_meter, scale, 41, 3, 15, lv_color_hex(0x333333)); 
 
-    // Create labels AFTER the meter so they are on top
+    // Labels 1-8
     for(int i=1; i<=8; i++) {
         lv_obj_t * lbl = lv_label_create(obd_screen);
         lv_label_set_text_fmt(lbl, "%d", i);
@@ -105,18 +105,18 @@ void build_obd_screen() {
     rpm_indicator = lv_meter_add_arc(rpm_meter, scale, 15, lv_color_hex(0xE67E22), 0);
     lv_meter_set_indicator_end_value(rpm_meter, rpm_indicator, 0);
 
-    // Speed Label (72px)
+    // Speed Label (MASSIVE 200px)
     speed_label = lv_label_create(obd_screen);
     lv_label_set_text(speed_label, "0");
     lv_obj_set_style_text_color(speed_label, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_font(speed_label, &ui_font_rajdhani, 0);
-    lv_obj_align(speed_label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_text_font(speed_label, &ui_font_rajdhani200, 0);
+    lv_obj_align(speed_label, LV_ALIGN_CENTER, 0, -10);
 
     lv_obj_t * unit_lbl = lv_label_create(obd_screen);
     lv_label_set_text(unit_lbl, "km/h");
     lv_obj_set_style_text_color(unit_lbl, lv_color_hex(0x888888), 0);
     lv_obj_set_style_text_font(unit_lbl, &lv_font_montserrat_28, 0);
-    lv_obj_align(unit_lbl, LV_ALIGN_CENTER, 0, 60);
+    lv_obj_align(unit_lbl, LV_ALIGN_CENTER, 0, 85);
 
     // Universal Exit
     lv_obj_t * touch_overlay = lv_obj_create(obd_screen);
@@ -174,7 +174,7 @@ void obd_loop_handler() {
         changed = true;
     }
 
-    // THE ULTIMATE GARBLE FIX: Invalidate full screen only on data change
+    // Use full screen invalidation to prevent garbling with the massive font
     if (changed) {
         lv_obj_invalidate(obd_screen);
     }
