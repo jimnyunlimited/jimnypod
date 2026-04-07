@@ -8,7 +8,7 @@
 // --- SIMULATION TOGGLE ---
 #define SIMULATE_OBD 1
 
-// Bring back the massive 200px font
+// Massive 200px font
 LV_FONT_DECLARE(ui_font_rajdhani200);
 
 // --- OBD Globals ---
@@ -57,7 +57,7 @@ void obdBackgroundWorker(void *pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(100)); 
     }
 #else
-    // Real OBD Logic...
+    // Real OBD Logic... (Omitted for brevity)
     vTaskDelay(pdMS_TO_TICKS(1000));
 #endif
 }
@@ -77,35 +77,44 @@ void build_obd_screen() {
 
     // Tachometer Base
     rpm_meter = lv_meter_create(obd_screen);
-    lv_obj_set_size(rpm_meter, 460, 460);
+    lv_obj_set_size(rpm_meter, 466, 466);
     lv_obj_center(rpm_meter);
     lv_obj_set_style_bg_opa(rpm_meter, 0, 0);
     lv_obj_set_style_border_width(rpm_meter, 0, 0);
 
     lv_meter_scale_t * scale = lv_meter_add_scale(rpm_meter);
     lv_meter_set_scale_range(rpm_meter, scale, 0, 8000, 270, 135);
-    lv_meter_set_scale_ticks(rpm_meter, scale, 41, 3, 15, lv_color_hex(0x333333)); 
+    
+    // 1. WHITE TICKS
+    lv_meter_set_scale_ticks(rpm_meter, scale, 41, 2, 12, lv_color_hex(0xFFFFFF)); 
+    lv_meter_set_scale_major_ticks(rpm_meter, scale, 5, 4, 22, lv_color_hex(0xFFFFFF), 100); 
 
-    // Labels 1-8
+    // 2. Manual labels 1-8 - MOVED OUTWARD to r=180 to clear Speedometer
     for(int i=1; i<=8; i++) {
         lv_obj_t * lbl = lv_label_create(obd_screen);
         lv_label_set_text_fmt(lbl, "%d", i);
         float angle_deg = 135.0f + (i * 33.75f); 
         float angle_rad = angle_deg * M_PI / 180.0f;
-        int r = 165; 
+        int r = 180; // Optimized radius to tuck labels next to ticks
         lv_obj_set_style_text_font(lbl, &lv_font_montserrat_28, 0);
         lv_obj_set_style_text_color(lbl, (i >= 6) ? lv_color_hex(0xFF0000) : lv_color_hex(0xFFFFFF), 0);
         lv_obj_align(lbl, LV_ALIGN_CENTER, (int)(r * cos(angle_rad)), (int)(r * sin(angle_rad)));
     }
 
+    // 3. Redline styling
     lv_meter_indicator_t * red_arc = lv_meter_add_arc(rpm_meter, scale, 15, lv_color_hex(0xFF0000), 0);
     lv_meter_set_indicator_start_value(rpm_meter, red_arc, 6000);
     lv_meter_set_indicator_end_value(rpm_meter, red_arc, 8000);
 
+    lv_meter_indicator_t * red_ticks = lv_meter_add_scale_lines(rpm_meter, scale, lv_color_hex(0xFF0000), lv_color_hex(0xFF0000), false, 0);
+    lv_meter_set_indicator_start_value(rpm_meter, red_ticks, 6000);
+    lv_meter_set_indicator_end_value(rpm_meter, red_ticks, 8000);
+
+    // 4. Orange Active Arc
     rpm_indicator = lv_meter_add_arc(rpm_meter, scale, 15, lv_color_hex(0xE67E22), 0);
     lv_meter_set_indicator_end_value(rpm_meter, rpm_indicator, 0);
 
-    // Speed Label (MASSIVE 200px)
+    // 5. Speed Label (MASSIVE 200px)
     speed_label = lv_label_create(obd_screen);
     lv_label_set_text(speed_label, "0");
     lv_obj_set_style_text_color(speed_label, lv_color_hex(0xFFFFFF), 0);
@@ -117,6 +126,13 @@ void build_obd_screen() {
     lv_obj_set_style_text_color(unit_lbl, lv_color_hex(0x888888), 0);
     lv_obj_set_style_text_font(unit_lbl, &lv_font_montserrat_28, 0);
     lv_obj_align(unit_lbl, LV_ALIGN_CENTER, 0, 85);
+
+    // 6. x1000 rpm Label (6 O'Clock)
+    lv_obj_t * rpm_unit_lbl = lv_label_create(obd_screen);
+    lv_label_set_text(rpm_unit_lbl, "x 1000 rpm");
+    lv_obj_set_style_text_color(rpm_unit_lbl, lv_color_hex(0xAAAAAA), 0);
+    lv_obj_set_style_text_font(rpm_unit_lbl, &lv_font_montserrat_20, 0);
+    lv_obj_align(rpm_unit_lbl, LV_ALIGN_BOTTOM_MID, 0, -40);
 
     // Universal Exit
     lv_obj_t * touch_overlay = lv_obj_create(obd_screen);
@@ -174,7 +190,6 @@ void obd_loop_handler() {
         changed = true;
     }
 
-    // Use full screen invalidation to prevent garbling with the massive font
     if (changed) {
         lv_obj_invalidate(obd_screen);
     }
