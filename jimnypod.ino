@@ -60,6 +60,7 @@ void setup() {
     build_settings_screen();
     build_game_screen();
     build_obd_screen();
+    build_obd_screen2();
     setup_brightness_overlay();
 
     // Start on Launcher
