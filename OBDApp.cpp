@@ -33,8 +33,8 @@ lv_obj_t * battery_label2 = NULL;
 
 volatile int car_rpm = 0;
 volatile int car_speed = 0;
-volatile int car_engine_temp = 90;
-volatile float car_voltage = 14.1;
+volatile int car_engine_temp = 0;
+volatile float car_voltage = 0.0;
 volatile int car_torque = 0;
 char car_gear[4] = "N";
 
@@ -150,12 +150,21 @@ void obdBackgroundWorker(void *pvParameters) {
         if (ptr4) { int a; if (sscanf(ptr4, "41 0D %x", &a) == 1) car_speed = a; }
         vTaskDelay(pdMS_TO_TICKS(250));
 
-        client.print("ATRV\r");
+        client.print("01A4\r"); // Query Transmission Actual Gear
         read_obd_response(client, rx_buf, sizeof(rx_buf));
-        float v = atof(rx_buf);
-        if (v > 0.0) car_voltage = v;
-
+        char* ptr5 = strstr(rx_buf, "41 A4");
+        if (ptr5) { 
+            int g; 
+            if (sscanf(ptr5, "41 A4 %x", &g) == 1) {
+                if (g == 0) strcpy(car_gear, "N");
+                else if (g == 0x0B) strcpy(car_gear, "P");
+                else if (g == 0x0C) strcpy(car_gear, "R");
+                else sprintf(car_gear, "%d", g);
+            }
+        }
         vTaskDelay(pdMS_TO_TICKS(250));
+
+        client.print("ATRV\r");
     }
 #endif
 }
